@@ -1,5 +1,6 @@
 #include "web_server.h"
-void handle_client(int client_socket_fd, response *(*route_handler)(request*)) {
+#include <string.h>
+void handle_client(int client_socket_fd, web_server *server) {
   // char response[] = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n"
   //                   "<html><body><h1>Hello, World!</h1></body></html>";
 	int result = 0;
@@ -20,17 +21,15 @@ void handle_client(int client_socket_fd, response *(*route_handler)(request*)) {
 		return;
 	}
 	result = 0;
-	response *res = route_handler(req);
+	response *res = server->route_handler(req);
 
 	result = generate_response(client_socket_fd, res);
-	printf("TODO: deel with response_text definaltion. complete data may be not be sent if un deealed\n");
 	if(result == UNABLE_TO_GENERATE_RESPONCE){
 		fprintf(stderr, "Responce generation failed");
 		return_result(UNABLE_TO_GENERATE_RESPONCE, client_socket_fd);
 		close(client_socket_fd);
 		return;
 	}
-	printf("TODO: CLEAR ALL MALLOC MEMORY\n");
 	free(req);
 	free(res);
 	// free(&response_text);
@@ -70,13 +69,26 @@ void return_result(int err, int client_socket_fd){
     str[digitCount] = '\0'; // Null-terminate the string
     return str;
 }
-
+#define CRLF "\r\n" 
 int generate_response(int client_socket_fd, response *res){
 	(void)res;
-	char response_text[] = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n"
-                    "<html><body><h1>Hello, World!</h1></body></html>";
-	// char *r = "HTTP/1.1 ";
-	// r = strcat(r, intToString(res->status_code));
+	// char response_text[] = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n"
+ //                    "<html><body><h1>Hello, World!</h1></body></html>";
+	char http_ver[] = "HTTP/1.1";
+	char con_typ_txt[] = "Content-Type: ";
+	int total_len = strlen(http_ver) + 1 + sizeof(res->status_code) + 1 + sizeof(res->status_text) + 1
+		+ sizeof(con_typ_txt) + sizeof(res->content_type) + 2 + sizeof(res->content) + 1;
+	char *response_text = malloc(total_len);
+	memset(response_text, 0, total_len);
+	response_text = strcat(response_text, http_ver);
+	response_text = strcat(response_text, " ");
+	response_text = strcat(response_text, intToString(res->status_code));
+	response_text = strcat(response_text, CRLF);
+	response_text = strcat(response_text, con_typ_txt);
+	response_text = strcat(response_text, res->content_type);
+	response_text = strcat(response_text, CRLF);
+	response_text = strcat(response_text, CRLF);
+	response_text = strcat(response_text, res->content);
 	// r = strcat(r, " ");
 	// r = strcat(r, res->status_text);
 	// r = strcat(r, "\r\nContent-Type: ");
@@ -95,7 +107,7 @@ int generate_response(int client_socket_fd, response *res){
 	}
 	return SUCCESS;
 }
-int create_server(web_server *server) {
+int create_server(web_server *server, response *(*route_handler)(request*)) {
 
   // Create socket
   server->server_socket_fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -103,7 +115,7 @@ int create_server(web_server *server) {
     perror("Socket creation failed");
     exit(EXIT_FAILURE);
   }
-
+	server->route_handler = route_handler;
   // Set server address
   server->server_addr.sin_family = AF_INET;
   server->server_addr.sin_addr.s_addr = INADDR_ANY;
@@ -127,12 +139,9 @@ int bind_server(web_server *server) {
 }
 int start_server(web_server *server) {
 
-  int result = create_server(server);
-  if (result == -1) {
-    perror("Server creation failed");
-    exit(EXIT_FAILURE);
-  }
-  result = 0;
+  // int result = create_server(server, route_handler);
+  int result = 0;
+
   result = bind_server(server);
   if (result == -1) {
     perror("Bind failed");
@@ -142,6 +151,25 @@ int start_server(web_server *server) {
   if (listen(server->server_socket_fd, 5) == -1) {
     perror("Listen failed");
     exit(EXIT_FAILURE);
+  }
+
+  int client_socket_fd;
+  struct sockaddr_in client_addr;
+  socklen_t client_addr_len = sizeof(client_addr);
+
+  printf("Server listening on port %d...\n", PORT);
+
+  // Accept incoming connections and handle them
+  while (1) {
+    client_socket_fd =
+        accept(server->server_socket_fd, (struct sockaddr *)&client_addr,
+               &client_addr_len);
+    if (client_socket_fd == -1) {
+      perror("Accept failed");
+      exit(EXIT_FAILURE);
+    }
+
+    handle_client(client_socket_fd, server);
   }
   return 0;
 }

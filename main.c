@@ -12,27 +12,14 @@ response *handle_request(request *req) {
 }
 int main() {
   web_server *server = (web_server *)malloc(sizeof(web_server));
-  if (start_server(server) == -1) {
+ 	int result = create_server(server, *handle_request); 
+  if (result == -1) {
     perror("Server creation failed");
     exit(EXIT_FAILURE);
   }
-  int client_socket_fd;
-  struct sockaddr_in client_addr;
-  socklen_t client_addr_len = sizeof(client_addr);
-
-  printf("Server listening on port %d...\n", PORT);
-
-  // Accept incoming connections and handle them
-  while (1) {
-    client_socket_fd =
-        accept(server->server_socket_fd, (struct sockaddr *)&client_addr,
-               &client_addr_len);
-    if (client_socket_fd == -1) {
-      perror("Accept failed");
-      exit(EXIT_FAILURE);
-    }
-
-    handle_client(client_socket_fd, *handle_request);
+	if (start_server(server) == -1) {
+    perror("Server creation failed");
+    exit(EXIT_FAILURE);
   }
 
   // Close server socket

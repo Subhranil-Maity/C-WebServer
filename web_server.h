@@ -30,15 +30,17 @@ typedef struct route {
 typedef struct web_server {
   char *ip;
   int port;
-  route **routes;
+  // route **routes;
   int server_socket_fd;
   struct sockaddr_in server_addr;
+	response *(*route_handler)(request*);
 } web_server;
 
 /**
  * Creates a server object
+ * returns server file discriptor
  */
-int create_server(web_server *server);
+int create_server(web_server *server, response *(*route_handler)(request*));
 /**
  * binds the server to the socket and port
  */
@@ -54,7 +56,7 @@ int start_server(web_server *server);
  * pointer is a function that takes a structured request pointer as an argument
  * and returns a structured response pointer.
  */
-void handle_client(int client_socket_fd, response *(*route_handler)(request *));
+void handle_client(int client_socket_fd, web_server *server);
 
 /**
  * Parses the request string and returns a structured request pointer
