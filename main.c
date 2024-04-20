@@ -2,6 +2,7 @@
 #include <stdio.h>
 
 response *handle_request(request *req) {
+	(void) req;
   response *res = (response *)malloc(sizeof(response));
   res->status_code = 200;
   res->status_text = "OK";
