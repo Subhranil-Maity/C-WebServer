@@ -5,6 +5,8 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
+
+#include "web_log.h"
 #define PORT 8080
 #define BUFFER_SIZE 1024
 
@@ -13,6 +15,11 @@
 #define UNABLE_TO_GENERATE_RESPONCE 2
 #define SUCCESS 200
 
+#define GET 1
+#define POST 2
+#define PUT 3
+#define DELETE 4
+
 typedef struct response {
   int status_code;
 	char *status_text;
@@ -20,8 +27,11 @@ typedef struct response {
   char *content;
 } response;
 typedef struct request {
+	int method;
   char *path;
   char *body;
+	int body_len;
+	char *content_type;
 } request;
 typedef struct route {
   char *path;
@@ -34,13 +44,14 @@ typedef struct web_server {
   int server_socket_fd;
   struct sockaddr_in server_addr;
 	response *(*route_handler)(request*);
+	logger *log;
 } web_server;
 
 /**
  * Creates a server object
  * returns server file discriptor
  */
-int create_server(web_server *server, response *(*route_handler)(request*));
+int create_server(web_server *server, response *(*route_handler)(request*), logger *loger);
 /**
  * binds the server to the socket and port
  */
